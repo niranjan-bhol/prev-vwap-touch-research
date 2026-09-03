@@ -27,6 +27,29 @@ def generate_trades(rows):
         low = float(row["low"])
         close = float(row["close"])
         
+        band = prev_vwap * 0.001
+        if abs(open_price - prev_vwap) <= band:
+            trades.append({
+                "date": row["date"],
+                "open": f"{open_price:.2f}",
+                "high": f"{high:.2f}",
+                "low": f"{low:.2f}",
+                "close": f"{close:.2f}",
+                "prev_vwap": f"{prev_vwap:.2f}",
+                "trade_type": "SKIP",
+                "entry": "",
+                "quantity": "",
+                "target": "",
+                "exit": "",
+                "target_hit": "",
+                "brokerage": "",
+                "tax_charges": "",
+                "pnl_absolute": "",
+                "pnl_percent": "",
+                "capital": f"{capital:.2f}",
+            })
+            continue
+        
         if open_price < prev_vwap:
             trade_type = "LONG"
         elif open_price > prev_vwap:
@@ -112,7 +135,8 @@ def main():
             rows = read_csv(csv_path)
             trades = generate_trades(rows)
             save_csv(trades, output_path)
-            print(f"{label}->  {len(trades)} trades")
+            active = sum(1 for t in trades if t["trade_type"] != "SKIP")
+            print(f"{label}->  {active} trades")
             success += 1
         except Exception:
             print(f"{label}->  Error")

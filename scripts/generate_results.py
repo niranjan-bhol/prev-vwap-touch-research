@@ -14,15 +14,18 @@ def generate_summary(symbol, trades):
     if not trades:
         return None
     
-    trade_count = len(trades)
-    target_hit_count = sum(1 for t in trades if t["target_hit"] == "true")
-    target_hit_percent = (target_hit_count / trade_count) * 100
+    active_trades = [t for t in trades if t["trade_type"] != "SKIP"]
     
-    pnl_values = [float(t["pnl_percent"]) for t in trades]
+    trade_count = len(active_trades)
+    target_hit_count = sum(1 for t in active_trades if t["target_hit"] == "true")
+    target_hit_percent = (target_hit_count / trade_count) * 100 if trade_count else 0
+    
+    pnl_values = [float(t["pnl_percent"]) for t in active_trades]
     total_pnl_percent = sum(pnl_values)
-    average_pnl_percent = total_pnl_percent / trade_count
+    average_pnl_percent = total_pnl_percent / trade_count if trade_count else 0
     
-    final_capital = float(trades[-1]["capital"])
+    last_capital_trade = next((t for t in reversed(trades) if t["capital"] != ""), None)
+    final_capital = float(last_capital_trade["capital"]) if last_capital_trade else 0
     
     return {
         "symbol": symbol,
@@ -61,7 +64,8 @@ def main():
             summary = generate_summary(symbol, trades)
             if summary:
                 summaries.append(summary)
-                print(f"{label}->  {len(trades)} trades")
+                active = sum(1 for t in trades if t["trade_type"] != "SKIP")
+                print(f"{label}->  {active} trades")
                 success += 1
         except Exception:
             print(f"{label}->  Error")
