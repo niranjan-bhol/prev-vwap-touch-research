@@ -1,4 +1,3 @@
-import csv
 import json
 import time
 import requests
@@ -6,8 +5,8 @@ from datetime import date, timedelta
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-INPUT_FILE = "symbols.csv"
-INPUT_PATH = BASE_DIR / "misc" / INPUT_FILE
+INPUT_FILE = "symbols.json"
+INPUT_PATH = BASE_DIR / "data" / "symbols" / INPUT_FILE
 OUTPUT_DIR = BASE_DIR / "data" / "nse" / "json"
 
 START_DATE = date(2025, 1, 1)
@@ -31,9 +30,9 @@ HEADERS = {
 }
 
 def read_symbols(path):
-    with open(path, newline="") as f:
-        reader = csv.reader(f)
-        return [row[0].strip() for row in reader if row and row[0].strip()]
+    with open(path) as f:
+        data = json.load(f)
+        return [symbol.strip() for symbol in data.keys() if symbol and symbol.strip()]
 
 def get_session():
     session = requests.Session()

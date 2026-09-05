@@ -9,22 +9,35 @@ Stocks tend to touch their previous day's VWAP (Volume Weighted Average Price) d
 ## Data
 
 - **Universe:** Nifty 500 stocks
-- **Source:** NSE historical price-volume-deliverable data
+- **VWAP source:** NSE historical price-volume-deliverable data (daily)
+- **OHLC source:** Zerodha Kite historical API (1-minute candles), used for entry/exit prices and day high/low
 - **Period:** 01 Jan 2025 – 31 Aug 2026
-- **Format:** Fetched as JSON → converted to CSV → transformed to clean CSV
+- **Format:** Fetched as JSON → converted to CSV → transformed/filtered to clean CSV
 
 ---
 
 ## Pipeline
 
 ```
-scripts/fetch_nse_data.py            # Fetch raw JSON from NSE (90-day chunks per symbol)
-scripts/json_to_csv.py               # Convert JSON → CSV (raw NSE columns)
-scripts/transform_csv.py             # Rename & clean columns → csv_transformed/
-scripts/generate_trades_overall.py   # Generate trades for full period (1 Jan 2025 – 31 Aug 2026)
-scripts/generate_trades_quarter.py   # Generate trades for recent period (1 Jun 2026 – 31 Aug 2026)
-scripts/generate_results_overall.py  # Summarise overall trades → results/summary_overall.csv
-scripts/generate_results_quarter.py  # Summarise quarter trades  → results/summary_quarter.csv
+# Auth & symbol setup
+scripts/fetch_access_token.py         # Log in to Zerodha Kite → data/auth/access_token.txt
+scripts/fetch_instruments.py          # Download Kite instruments list → data/instruments/instruments.csv
+scripts/generate_symbols.py           # Map Nifty 500 symbols → instrument tokens → data/symbols/symbols.json
+
+# NSE data → previous day VWAP
+scripts/fetch_nse_data.py             # Fetch raw JSON from NSE (90-day chunks per symbol)
+scripts/json_to_csv_nse.py            # Convert JSON → CSV (+ corporate actions → csv_ca/)
+scripts/transform_csv.py              # Rename & clean columns → csv_transformed/
+scripts/extract_vwap.py               # Carry forward each day's VWAP as next day's prev_vwap → nse/vwap/
+
+# Zerodha data → intraday OHLC
+scripts/fetch_historical_data.py --interval minute   # Fetch 1-minute candles from Kite → historical/json/
+scripts/json_to_csv_zerodha.py        # Convert JSON → CSV → historical/csv/
+scripts/filter_data.py                # Extract 09:15 & 15:18 snapshots + day high/low → historical/filtered/
+
+# Trades & results
+scripts/generate_trades.py            # Combine filtered OHLC + prev_vwap → backtests/trades/<symbol>.csv
+scripts/generate_results.py           # Summarise trades by month/quarter/year → results/*.csv
 ```
 
 ---
@@ -35,8 +48,10 @@ scripts/generate_results_quarter.py  # Summarise quarter trades  → results/sum
 
 | Condition | Trade |
 |-----------|-------|
-| Open < Previous day VWAP | LONG at open |
-| Open > Previous day VWAP | SHORT at open |
+| 09:15 open < Previous day VWAP | LONG at 09:15 open |
+| 09:15 open > Previous day VWAP | SHORT at 09:15 open |
+
+- Entry price is the open of the 09:15 1-minute candle (falls back to the next available candle if 09:15 is missing).
 
 ### Skip
 
@@ -45,7 +60,7 @@ scripts/generate_results_quarter.py  # Summarise quarter trades  → results/sum
 ### Target / Exit
 
 - **Target:** Previous day's VWAP
-- **Exit:** If the VWAP level was touched during the day (`low <= prev_vwap <= high`), exit at prev_vwap. Otherwise exit at close.
+- **Exit:** If the VWAP level was touched between 09:15 and 15:18 (`day_low <= prev_vwap <= day_high`), exit at prev_vwap. Otherwise exit at the 15:18 close (falls back to the previous available candle if 15:18 is missing).
 
 ### Position Sizing
 
@@ -69,7 +84,8 @@ scripts/generate_results_quarter.py  # Summarise quarter trades  → results/sum
 
 ## Results
 
-| Period | File |
-|--------|------|
-| 01 Jan 2025 – 31 Aug 2026 | `results/summary_overall.csv` |
-| 01 Jun 2026 – 31 Aug 2026 | `results/summary_quarter.csv` |
+| Period | Range | File |
+|--------|-------|------|
+| Year | 01 Sep 2025 – 31 Aug 2026 | `results/year.csv` |
+| Quarter | 01 Jun 2026 – 31 Aug 2026 | `results/quarter.csv` |
+| Month | 01 Aug 2026 – 31 Aug 2026 | `results/month.csv` |
