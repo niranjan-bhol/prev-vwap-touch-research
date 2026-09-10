@@ -5,8 +5,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 INPUT_DIR = BASE_DIR / "data" / "historical" / "csv"
 OUTPUT_DIR = BASE_DIR / "data" / "historical" / "filtered"
 
-TARGET_TIMES = ["09:15", "15:18"]
-FALLBACK_DIRECTION = {"09:15": "next", "15:18": "previous"}
+TARGET_TIMES = ["09:15", "15:18", "15:28"]
+FALLBACK_DIRECTION = {"09:15": "next", "15:18": "previous", "15:28": "previous"}
 
 def get_time_prefix(time_str):
 	return time_str.replace(":", "")
@@ -25,18 +25,36 @@ def empty_output_row(date_value):
 		row[f"{prefix}_low"] = ""
 		row[f"{prefix}_close"] = ""
 		row[f"{prefix}_volume"] = ""
+	row["session_high"] = ""
+	row["session_low"] = ""
 	row["day_high"] = ""
 	row["day_low"] = ""
 	return row
+
+def compute_session_high_low(sorted_rows):
+	session_high = None
+	session_low = None
+    
+	for hhmm, values in sorted_rows:
+		if not ("09:15" <= hhmm <= "15:18"):
+			continue
+        
+		high = float(values["high"])
+		low = float(values["low"])
+        
+		session_high = high if session_high is None else max(session_high, high)
+		session_low = low if session_low is None else min(session_low, low)
+    
+	return session_high, session_low
 
 def compute_day_high_low(sorted_rows):
 	day_high = None
 	day_low = None
     
 	for hhmm, values in sorted_rows:
-		if not ("09:15" <= hhmm <= "15:18"):
-			continue
-        
+		if not ("09:15" <= hhmm <= "15:28"):
+					continue
+		
 		high = float(values["high"])
 		low = float(values["low"])
         
@@ -99,6 +117,10 @@ def process_file(input_path, output_path):
 				output_row[f"{prefix}_close"] = values["close"]
 				output_row[f"{prefix}_volume"] = values["volume"]
         
+		session_high, session_low = compute_session_high_low(sorted_rows)
+		output_row["session_high"] = session_high if session_high is not None else ""
+		output_row["session_low"] = session_low if session_low is not None else ""
+        
 		day_high, day_low = compute_day_high_low(sorted_rows)
 		output_row["day_high"] = day_high if day_high is not None else ""
 		output_row["day_low"] = day_low if day_low is not None else ""
@@ -109,6 +131,8 @@ def process_file(input_path, output_path):
 		"date",
 		"0915_open", "0915_high", "0915_low", "0915_close", "0915_volume",
 		"1518_open", "1518_high", "1518_low", "1518_close", "1518_volume",
+		"1528_open", "1528_high", "1528_low", "1528_close", "1528_volume",
+		"session_high", "session_low",
 		"day_high", "day_low",
 	]
     
