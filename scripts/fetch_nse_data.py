@@ -10,7 +10,6 @@ INPUT_PATH = BASE_DIR / "data" / "symbols" / INPUT_FILE
 OUTPUT_DIR = BASE_DIR / "data" / "nse" / "json"
 
 START_DATE = date(2025, 1, 1)
-END_DATE = date(2026, 8, 31)
 CHUNK_DAYS = 90
 
 API_URL = (
@@ -52,7 +51,8 @@ def date_chunks(start, end, days):
 
 def fetch_symbol(session, symbol, max_retries=3):
     all_records = []
-    for from_date, to_date in date_chunks(START_DATE, END_DATE, CHUNK_DAYS):
+    end_date = date.today() - timedelta(days=1)
+    for from_date, to_date in date_chunks(START_DATE, end_date, CHUNK_DAYS):
         url = API_URL.format(symbol=symbol, from_date=from_date, to_date=to_date)
         
         for attempt in range(max_retries):

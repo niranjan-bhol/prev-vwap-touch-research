@@ -6,10 +6,6 @@ FILTERED_DIR = BASE_DIR / "data" / "historical" / "filtered"
 VWAP_DIR = BASE_DIR / "data" / "nse" / "vwap"
 OUTPUT_DIR = BASE_DIR / "data" / "backtests" / "trades" / "intraday"
 
-INITIAL_CAPITAL = 1_000_000
-BROKERAGE = 40.0
-TAX_RATE = 0.02 / 100
-
 def read_csv(path):
     with open(path, "r") as f:
         return list(csv.DictReader(f))
@@ -17,7 +13,6 @@ def read_csv(path):
 def generate_trades(filtered_rows, vwap_rows):
     vwap_by_date = {row["date"]: row for row in vwap_rows}
     trades = []
-    capital = INITIAL_CAPITAL
     
     for row in filtered_rows:
         vwap_row = vwap_by_date.get(row["date"])
@@ -45,15 +40,11 @@ def generate_trades(filtered_rows, vwap_rows):
                 "prev_vwap": f"{prev_vwap:.2f}",
                 "trade_type": "SKIP",
                 "entry": "",
-                "quantity": "",
                 "target": "",
                 "exit": "",
                 "target_hit": "",
-                "brokerage": "",
-                "tax_charges": "",
                 "pnl_absolute": "",
                 "pnl_percent": "",
-                "capital": f"{capital:.2f}",
             })
             continue
         
@@ -65,11 +56,6 @@ def generate_trades(filtered_rows, vwap_rows):
             continue
         
         entry = open
-        quantity = int(capital / entry)
-        
-        if quantity == 0:
-            continue
-        
         target = prev_vwap
         
         if low <= prev_vwap <= high:
@@ -79,18 +65,12 @@ def generate_trades(filtered_rows, vwap_rows):
         
         target_hit = exit == prev_vwap
         
-        trade_turnover = (entry + exit) * quantity
-        tax_charges = trade_turnover * TAX_RATE
-        
         if trade_type == "LONG":
-            pnl_absolute = (exit - entry) * quantity - (BROKERAGE + tax_charges)
+            pnl_absolute = exit - entry
         else:
-            pnl_absolute = (entry - exit) * quantity - (BROKERAGE + tax_charges)
+            pnl_absolute = entry - exit
         
-        invested = entry * quantity
-        pnl_percent = (pnl_absolute / invested) * 100 if invested else 0
-        
-        capital += pnl_absolute
+        pnl_percent = (pnl_absolute / entry) * 100 if entry else 0
         
         trades.append({
             "date": row["date"],
@@ -101,15 +81,11 @@ def generate_trades(filtered_rows, vwap_rows):
             "prev_vwap": f"{prev_vwap:.2f}",
             "trade_type": trade_type,
             "entry": f"{entry:.2f}",
-            "quantity": quantity,
             "target": f"{target:.2f}",
             "exit": f"{exit:.2f}",
             "target_hit": str(target_hit).lower(),
-            "brokerage": f"{BROKERAGE:.2f}",
-            "tax_charges": f"{tax_charges:.2f}",
             "pnl_absolute": f"{pnl_absolute:.2f}",
             "pnl_percent": f"{pnl_percent:.2f}",
-            "capital": f"{capital:.2f}",
         })
     
     return trades
