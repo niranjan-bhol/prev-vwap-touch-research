@@ -62,7 +62,7 @@ def fetch_symbol(session, symbol, max_retries=3):
                 records = response.json().get("data", [])
                 all_records.extend(records)
                 break
-            except (requests.HTTPError, requests.ConnectionError) as e:
+            except (requests.HTTPError, requests.ConnectionError, ValueError) as e:
                 if attempt < max_retries - 1:
                     time.sleep(2 ** attempt)
                 else:

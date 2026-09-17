@@ -6,6 +6,8 @@ FILTERED_DIR = BASE_DIR / "data" / "historical" / "filtered"
 VWAP_DIR = BASE_DIR / "data" / "nse" / "vwap"
 OUTPUT_DIR = BASE_DIR / "data" / "backtests" / "trades" / "overnight"
 
+SKIP_BAND_PERCENT = 0.005  # skip if |prev_close - prev_vwap| <= 0.5% of prev_vwap
+
 def read_csv(path):
     with open(path, "r") as f:
         return list(csv.DictReader(f))
@@ -33,7 +35,7 @@ def generate_trades(filtered_rows, vwap_rows):
         low = float(day2["day_low"])
         close = float(day2["1528_close"])
         
-        band = prev_vwap * 0.005
+        band = prev_vwap * SKIP_BAND_PERCENT
         if abs(prev_close - prev_vwap) <= band:
             trades.append({
                 "date": day2["date"],

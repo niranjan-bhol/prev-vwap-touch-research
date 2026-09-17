@@ -30,6 +30,8 @@ AUTH_URL = (
     })
 )
 
+MAX_REDIRECTS = 10
+
 def get_request_token(session):
     login_res = session.post(LOGIN_URL, data={
         "user_id": USER_ID,
@@ -44,8 +46,15 @@ def get_request_token(session):
     
     res = session.get(AUTH_URL, allow_redirects=False, timeout=30)
     
-    while 'request_token' not in res.headers.get('Location', ''):
-        res = session.get(res.headers['Location'], allow_redirects=False, timeout=30)
+    for _ in range(MAX_REDIRECTS):
+        location = res.headers.get('Location', '')
+        if 'request_token' in location:
+            break
+        if not location:
+            raise RuntimeError("Login redirect chain broke before a request_token was issued")
+        res = session.get(location, allow_redirects=False, timeout=30)
+    else:
+        raise RuntimeError(f"Did not receive request_token within {MAX_REDIRECTS} redirects")
     
     return parse_qs(urlparse(res.headers['Location']).query)['request_token'][0]
 

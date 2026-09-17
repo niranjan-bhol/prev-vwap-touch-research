@@ -1,5 +1,11 @@
+import os
 import requests
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_KEY = os.getenv("API_KEY")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 TOKEN_FILE = "access_token.txt"
@@ -20,7 +26,7 @@ def download_instruments():
     
     token = read_access_token()
     response = requests.get(INSTRUMENTS_URL, headers={
-        "Authorization": f"enctoken {token}",
+        "Authorization": f"token {API_KEY}:{token}",
         "X-Kite-Version": "3"
     }, timeout=30)
     response.raise_for_status()

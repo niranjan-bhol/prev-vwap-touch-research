@@ -6,6 +6,8 @@ FILTERED_DIR = BASE_DIR / "data" / "historical" / "filtered"
 VWAP_DIR = BASE_DIR / "data" / "nse" / "vwap"
 OUTPUT_DIR = BASE_DIR / "data" / "backtests" / "trades" / "intraday"
 
+SKIP_BAND_PERCENT = 0.001  # skip if |open - prev_vwap| <= 0.1% of prev_vwap
+
 def read_csv(path):
     with open(path, "r") as f:
         return list(csv.DictReader(f))
@@ -29,7 +31,7 @@ def generate_trades(filtered_rows, vwap_rows):
         low = float(row["session_low"])
         close = float(row["1518_close"])
         
-        band = prev_vwap * 0.001
+        band = prev_vwap * SKIP_BAND_PERCENT
         if abs(open - prev_vwap) <= band:
             trades.append({
                 "date": row["date"],
@@ -53,7 +55,7 @@ def generate_trades(filtered_rows, vwap_rows):
         elif open > prev_vwap:
             trade_type = "SHORT"
         else:
-            continue
+            continue  # unreachable: skip-band check above already covers exact equality
         
         entry = open
         target = prev_vwap

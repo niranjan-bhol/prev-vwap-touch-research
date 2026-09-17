@@ -15,7 +15,7 @@ def read_json(path):
 def parse_date(record):
     try:
         return datetime.strptime(record.get("mTIMESTAMP", ""), "%d-%b-%Y")
-    except:
+    except (ValueError, TypeError):
         return datetime.min
 
 def save_csv(data, path):

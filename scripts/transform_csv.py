@@ -24,7 +24,7 @@ def transform_date(date_str):
     try:
         dt = datetime.strptime(date_str, "%d-%b-%Y")
         return dt.strftime("%Y-%m-%d")
-    except:
+    except (ValueError, TypeError):
         return date_str
 
 def transform_csv(input_path, output_path):
