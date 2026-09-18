@@ -8,6 +8,7 @@ OUTPUT_DIR = BASE_DIR / "data" / "backtests" / "30d_rolling" / "trades"
 
 TOP_N = 10
 METRICS = ["target_hit_percent", "average_pnl_percent"]
+MIN_TRADE_COUNT = 15  # minimum trades in the trailing window to be eligible for top-N selection
 
 def read_csv(path):
     with open(path, "r") as f:
@@ -24,7 +25,7 @@ def load_results():
     for path in sorted(RESULTS_DIR.glob("*.csv")):
         symbol = path.stem
         for row in read_csv(path):
-            entry = {"symbol": symbol}
+            entry = {"symbol": symbol, "trade_count": int(row["trade_count"])}
             entry.update({metric: float(row[metric]) for metric in METRICS})
             date_map.setdefault(row["date"], []).append(entry)
     return date_map
@@ -72,22 +73,26 @@ def main():
     for i, current_date in enumerate(dates, start=1):
         label = f"[{i:0{width}}/{total}]  {current_date}"
 
-        entries = date_map[current_date]
-        counts = []
-        for metric in METRICS:
-            top_entries = sorted(entries, key=lambda entry: entry[metric], reverse=True)[:TOP_N]
-            rows = build_rows(top_entries, trades_map, current_date)
+        try:
+            entries = date_map[current_date]
+            eligible_entries = [e for e in entries if e["trade_count"] >= MIN_TRADE_COUNT]
+            counts = []
+            for metric in METRICS:
+                top_entries = sorted(eligible_entries, key=lambda entry: entry[metric], reverse=True)[:TOP_N]
+                rows = build_rows(top_entries, trades_map, current_date)
 
-            if rows:
-                output_path = OUTPUT_DIR / metric / f"{current_date}.csv"
-                save_rows(rows, fieldnames, output_path)
-                counts.append(f"{metric}={len(rows)}")
+                if rows:
+                    output_path = OUTPUT_DIR / metric / f"{current_date}.csv"
+                    save_rows(rows, fieldnames, output_path)
+                    counts.append(f"{metric}={len(rows)}")
 
-        if counts:
-            print(f"{label}->  {', '.join(counts)}")
-            success += 1
-        else:
-            print(f"{label}->  No data")
+            if counts:
+                print(f"{label}->  {', '.join(counts)}")
+                success += 1
+            else:
+                print(f"{label}->  No data")
+        except Exception:
+            print(f"{label}->  Error")
 
     print(f"\nSuccessfully processed {success}/{total} dates")
     relative_path = Path("/") / OUTPUT_DIR.relative_to(BASE_DIR.parent)

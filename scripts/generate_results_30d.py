@@ -6,14 +6,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 INPUT_DIR = BASE_DIR / "data" / "backtests" / "trades" / "intraday"
 OUTPUT_DIR = BASE_DIR / "data" / "backtests" / "30d_rolling" / "results"
 
-WINDOW_DAYS = 30
+WINDOW_DAYS = 30  # calendar days, not trading days (~19-22 trading days depending on holidays/weekends)
 
 def read_trades(path):
     with open(path, "r") as f:
         return list(csv.DictReader(f))
 
 def generate_summary(trades, start_date, end_date):
-    ranged_trades = [t for t in trades if start_date <= t["date"] <= end_date]
+    # end_date excluded: today's own outcome must not leak into today's selection metric
+    ranged_trades = [t for t in trades if start_date <= t["date"] < end_date]
     active_trades = [t for t in ranged_trades if t["trade_type"] != "SKIP"]
 
     trade_count = len(active_trades)
